@@ -13,14 +13,33 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 from pytorchyolo.models import load_model
-from pytorchyolo.utils.utils import load_classes, ap_per_class, get_batch_statistics, non_max_suppression, to_cpu, xywh2xyxy, print_environment_info
-from pytorchyolo.utils.datasets import ListDataset
+from pytorchyolo.utils.utils import (
+    load_classes,
+    ap_per_class,
+    get_batch_statistics,
+    non_max_suppression,
+    to_cpu,
+    xywh2xyxy,
+    print_environment_info,
+)
+from pytorchyolo.utils.datasets import ListDataset, my_dataset_LMDB
 from pytorchyolo.utils.transforms import DEFAULT_TRANSFORMS
 from pytorchyolo.utils.parse_config import parse_data_config
 
 
-def evaluate_model_file(model_path, weights_path, img_path, class_names, batch_size=8, img_size=416,
-                        n_cpu=8, iou_thres=0.5, conf_thres=0.5, nms_thres=0.5, verbose=True):
+def evaluate_model_file(
+    model_path,
+    weights_path,
+    img_path,
+    class_names,
+    batch_size=8,
+    img_size=416,
+    n_cpu=8,
+    iou_thres=0.5,
+    conf_thres=0.5,
+    nms_thres=0.5,
+    verbose=True,
+):
     """Evaluate model on validation dataset.
 
     :param model_path: Path to model definition file (.cfg)
@@ -48,7 +67,8 @@ def evaluate_model_file(model_path, weights_path, img_path, class_names, batch_s
     :return: Returns precision, recall, AP, f1, ap_class
     """
     dataloader = _create_validation_data_loader(
-        img_path, batch_size, img_size, n_cpu)
+        img_path, batch_size, img_size, n_cpu
+    )
     model = load_model(model_path, weights_path)
     metrics_output = _evaluate(
         model,
@@ -58,7 +78,8 @@ def evaluate_model_file(model_path, weights_path, img_path, class_names, batch_s
         iou_thres,
         conf_thres,
         nms_thres,
-        verbose)
+        verbose,
+    )
     return metrics_output
 
 
@@ -76,7 +97,16 @@ def print_eval_stats(metrics_output, class_names, verbose):
         print("---- mAP not measured (no detections found by model) ----")
 
 
-def _evaluate(model, dataloader, class_names, img_size, iou_thres, conf_thres, nms_thres, verbose):
+def _evaluate(
+    model,
+    dataloader,
+    class_names,
+    img_size,
+    iou_thres,
+    conf_thres,
+    nms_thres,
+    verbose,
+):
     """Evaluate model on validation dataset.
 
     :param model: Model to evaluate
@@ -99,7 +129,11 @@ def _evaluate(model, dataloader, class_names, img_size, iou_thres, conf_thres, n
     """
     model.eval()  # Set model to evaluation mode
 
-    Tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+    Tensor = (
+        torch.cuda.FloatTensor
+        if torch.cuda.is_available()
+        else torch.FloatTensor
+    )
 
     labels = []
     sample_metrics = []  # List of tuples (TP, confs, pred)
@@ -114,9 +148,13 @@ def _evaluate(model, dataloader, class_names, img_size, iou_thres, conf_thres, n
 
         with torch.no_grad():
             outputs = model(imgs)
-            outputs = non_max_suppression(outputs, conf_thres=conf_thres, iou_thres=nms_thres)
+            outputs = non_max_suppression(
+                outputs, conf_thres=conf_thres, iou_thres=nms_thres
+            )
 
-        sample_metrics += get_batch_statistics(outputs, targets, iou_threshold=iou_thres)
+        sample_metrics += get_batch_statistics(
+            outputs, targets, iou_threshold=iou_thres
+        )
 
     if len(sample_metrics) == 0:  # No detections over whole validation set.
         print("---- No detections over whole validation set ----")
@@ -124,9 +162,11 @@ def _evaluate(model, dataloader, class_names, img_size, iou_thres, conf_thres, n
 
     # Concatenate sample statistics
     true_positives, pred_scores, pred_labels = [
-        np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
+        np.concatenate(x, 0) for x in list(zip(*sample_metrics))
+    ]
     metrics_output = ap_per_class(
-        true_positives, pred_scores, pred_labels, labels)
+        true_positives, pred_scores, pred_labels, labels
+    )
 
     print_eval_stats(metrics_output, class_names, verbose)
 
@@ -148,30 +188,90 @@ def _create_validation_data_loader(img_path, batch_size, img_size, n_cpu):
     :return: Returns DataLoader
     :rtype: DataLoader
     """
-    dataset = ListDataset(img_path, img_size=img_size, multiscale=False, transform=DEFAULT_TRANSFORMS)
+    dataset = my_dataset_LMDB(
+        img_path,
+        img_size=img_size,
+        multiscale=False,
+        transform=DEFAULT_TRANSFORMS,
+    )
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=n_cpu,
         pin_memory=True,
-        collate_fn=dataset.collate_fn)
+        collate_fn=dataset.collate_fn,
+    )
     return dataloader
 
 
 def run():
     print_environment_info()
     parser = argparse.ArgumentParser(description="Evaluate validation data.")
-    parser.add_argument("-m", "--model", type=str, default="config/yolov3.cfg", help="Path to model definition file (.cfg)")
-    parser.add_argument("-w", "--weights", type=str, default="weights/yolov3.weights", help="Path to weights or checkpoint file (.weights or .pth)")
-    parser.add_argument("-d", "--data", type=str, default="config/coco.data", help="Path to data config file (.data)")
-    parser.add_argument("-b", "--batch_size", type=int, default=8, help="Size of each image batch")
-    parser.add_argument("-v", "--verbose", action='store_true', help="Makes the validation more verbose")
-    parser.add_argument("--img_size", type=int, default=416, help="Size of each image dimension for yolo")
-    parser.add_argument("--n_cpu", type=int, default=8, help="Number of cpu threads to use during batch generation")
-    parser.add_argument("--iou_thres", type=float, default=0.5, help="IOU threshold required to qualify as detected")
-    parser.add_argument("--conf_thres", type=float, default=0.01, help="Object confidence threshold")
-    parser.add_argument("--nms_thres", type=float, default=0.4, help="IOU threshold for non-maximum suppression")
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        default="config/yolov3.cfg",
+        help="Path to model definition file (.cfg)",
+    )
+    parser.add_argument(
+        "-w",
+        "--weights",
+        type=str,
+        default="weights/yolov3.weights",
+        help="Path to weights or checkpoint file (.weights or .pth)",
+    )
+    parser.add_argument(
+        "-d",
+        "--data",
+        type=str,
+        default="config/coco.data",
+        help="Path to data config file (.data)",
+    )
+    parser.add_argument(
+        "-b",
+        "--batch_size",
+        type=int,
+        default=8,
+        help="Size of each image batch",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Makes the validation more verbose",
+    )
+    parser.add_argument(
+        "--img_size",
+        type=int,
+        default=416,
+        help="Size of each image dimension for yolo",
+    )
+    parser.add_argument(
+        "--n_cpu",
+        type=int,
+        default=8,
+        help="Number of cpu threads to use during batch generation",
+    )
+    parser.add_argument(
+        "--iou_thres",
+        type=float,
+        default=0.5,
+        help="IOU threshold required to qualify as detected",
+    )
+    parser.add_argument(
+        "--conf_thres",
+        type=float,
+        default=0.01,
+        help="Object confidence threshold",
+    )
+    parser.add_argument(
+        "--nms_thres",
+        type=float,
+        default=0.4,
+        help="IOU threshold for non-maximum suppression",
+    )
     args = parser.parse_args()
     print(f"Command line arguments: {args}")
 
@@ -192,7 +292,8 @@ def run():
         iou_thres=args.iou_thres,
         conf_thres=args.conf_thres,
         nms_thres=args.nms_thres,
-        verbose=True)
+        verbose=True,
+    )
 
 
 if __name__ == "__main__":

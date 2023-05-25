@@ -33,9 +33,7 @@ def pad_to_square(img, pad_value):
 
 
 def resize(image, size):
-    image = F.interpolate(
-        image.unsqueeze(0), size=size, mode="nearest"
-    ).squeeze(0)
+    image = F.interpolate(image.unsqueeze(0), size=size, mode="nearest").squeeze(0)
     return image
 
 
@@ -45,8 +43,11 @@ class ImageFolder(Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
+
         img_path = self.files[index % len(self.files)]
-        img = np.array(Image.open(img_path).convert("RGB"), dtype=np.uint8)
+        img = np.array(
+            Image.open(img_path).convert('RGB'),
+            dtype=np.uint8)
 
         # Label Placeholder
         boxes = np.zeros((1, 5))
@@ -62,9 +63,7 @@ class ImageFolder(Dataset):
 
 
 class ListDataset(Dataset):
-    def __init__(
-        self, list_path, img_size=416, multiscale=True, transform=None
-    ):
+    def __init__(self, list_path, img_size=416, multiscale=True, transform=None):
         with open(list_path, "r") as file:
             self.img_files = file.readlines()
 
@@ -72,12 +71,10 @@ class ListDataset(Dataset):
         for path in self.img_files:
             image_dir = os.path.dirname(path)
             label_dir = "labels".join(image_dir.rsplit("images", 1))
-            assert label_dir != image_dir, (
-                "Image path must contain a folder named 'images'!"
-                f" \n'{image_dir}'"
-            )
+            assert label_dir != image_dir, \
+                f"Image path must contain a folder named 'images'! \n'{image_dir}'"
             label_file = os.path.join(label_dir, os.path.basename(path))
-            label_file = os.path.splitext(label_file)[0] + ".txt"
+            label_file = os.path.splitext(label_file)[0] + '.txt'
             self.label_files.append(label_file)
 
         self.img_size = img_size
@@ -89,13 +86,15 @@ class ListDataset(Dataset):
         self.transform = transform
 
     def __getitem__(self, index):
+
         # ---------
         #  Image
         # ---------
         try:
+
             img_path = self.img_files[index % len(self.img_files)].rstrip()
 
-            img = np.array(Image.open(img_path).convert("RGB"), dtype=np.uint8)
+            img = np.array(Image.open(img_path).convert('RGB'), dtype=np.uint8)
         except Exception:
             print(f"Could not read image '{img_path}'.")
             return
@@ -139,8 +138,7 @@ class ListDataset(Dataset):
         # Selects new image size every tenth batch
         if self.multiscale and self.batch_count % 10 == 0:
             self.img_size = random.choice(
-                range(self.min_size, self.max_size + 1, 32)
-            )
+                range(self.min_size, self.max_size + 1, 32))
 
         # Resize images to input shape
         imgs = torch.stack([resize(img, self.img_size) for img in imgs])
@@ -155,11 +153,8 @@ class ListDataset(Dataset):
     def __len__(self):
         return len(self.img_files)
 
-
 class ListDataset_PKL(Dataset):
-    def __init__(
-        self, list_path, img_size=416, multiscale=True, transform=None
-    ):
+    def __init__(self, list_path, img_size=416, multiscale=True, transform=None):
         with open(list_path, "r") as file:
             self.img_files = file.readlines()
 
@@ -167,12 +162,10 @@ class ListDataset_PKL(Dataset):
         for path in self.img_files:
             image_dir = os.path.dirname(path)
             label_dir = "labels".join(image_dir.rsplit("images", 1))
-            assert label_dir != image_dir, (
-                "Image path must contain a folder named 'images'!"
-                f" \n'{image_dir}'"
-            )
+            assert label_dir != image_dir, \
+                f"Image path must contain a folder named 'images'! \n'{image_dir}'"
             label_file = os.path.join(label_dir, os.path.basename(path))
-            label_file = os.path.splitext(label_file)[0] + ".txt"
+            label_file = os.path.splitext(label_file)[0] + '.txt'
             self.label_files.append(label_file)
 
         self.img_size = img_size
@@ -186,26 +179,26 @@ class ListDataset_PKL(Dataset):
         self._init_pkl()
 
     def _init_pkl(self):
-        with open(self.pkl_path, "rb") as handle:
+        with open(self.pkl_path, 'rb') as handle:
             self.key_labels = pickle.load(handle)
 
     def read_pkl(self, key):
         # print(key)
-        data_str = self.key_labels[key].decode("utf-8").split("\n")
-        label = np.array(
-            [list(map(float, s.split())) for s in data_str if s]
-        ).reshape(-1, 5)
+        data_str = self.key_labels[key].decode('utf-8').split('\n')
+        label = np.array([list(map(float, s.split())) for s in data_str if s]).reshape(-1, 5)
         # print(label)
         return label
 
     def __getitem__(self, index):
+
         # ---------
         #  Image
         # ---------
         try:
+
             img_path = self.img_files[index % len(self.img_files)].rstrip()
 
-            img = np.array(Image.open(img_path).convert("RGB"), dtype=np.uint8)
+            img = np.array(Image.open(img_path).convert('RGB'), dtype=np.uint8)
         except Exception:
             print(f"Could not read image '{img_path}'.")
             return
@@ -225,7 +218,7 @@ class ListDataset_PKL(Dataset):
                 boxes = self.read_pkl(str(img_label))
             # print(boxes_1, boxes_2)
             # assert(boxes_1 == boxes_2)
-
+            
         except Exception:
             print(f"Could not read label '{img_label}'.")
             return
@@ -237,7 +230,7 @@ class ListDataset_PKL(Dataset):
         # -----------
         if self.transform:
             try:
-                # Ignore warning if file is empty
+            # Ignore warning if file is empty
                 img, bb_targets = self.transform((img, boxes))
             except Exception:
                 print("Could not apply transform.")
@@ -256,8 +249,7 @@ class ListDataset_PKL(Dataset):
         # Selects new image size every tenth batch
         if self.multiscale and self.batch_count % 10 == 0:
             self.img_size = random.choice(
-                range(self.min_size, self.max_size + 1, 32)
-            )
+                range(self.min_size, self.max_size + 1, 32))
 
         # Resize images to input shape
         imgs = torch.stack([resize(img, self.img_size) for img in imgs])
@@ -274,18 +266,14 @@ class ListDataset_PKL(Dataset):
 
 
 class my_dataset_LMDB_PKL(Dataset):
-    def __init__(
-        self, list_path, img_size=416, multiscale=True, transform=None
-    ):
+    def __init__(self, list_path, img_size=416, multiscale=True, transform=None):
         self.db_path = DB_PATH
         self.pkl_path = PKL_PATH
         self.key_labels = {}
 
         with open(list_path, "r") as file:
             self.img_files = file.readlines()
-        self.image_labels = [
-            path.split("/")[-1].split(".")[0] for path in self.img_files
-        ]
+        self.image_labels = [path.split("/")[-1].split(".")[0] for path in self.img_files]
 
         # Delay loading LMDB data until after initialization to avoid "can't pickle Environment Object error"
         self._init_db()
@@ -298,33 +286,28 @@ class my_dataset_LMDB_PKL(Dataset):
         self.max_size = self.img_size + 3 * 32
         self.batch_count = 0
         self.transform = transform
+        
 
     def _init_db(self):
-        self.env = lmdb.open(
-            self.db_path,
-            subdir=os.path.isdir(self.db_path),
-            readonly=True,
-            lock=False,
-            readahead=False,
-            meminit=False,
-        )
+        self.env = lmdb.open(self.db_path, subdir=os.path.isdir(self.db_path),
+            readonly=True, lock=False,
+            readahead=False, meminit=False)
         self.txn = self.env.begin()
-
+        
+    
     def _init_pkl(self):
-        with open(self.pkl_path, "rb") as handle:
+        with open(self.pkl_path, 'rb') as handle:
             self.key_labels = pickle.load(handle)
 
     def read_lmdb(self, key):
         lmdb_data = self.txn.get(key.encode("ascii"))
         lmdb_data = np.frombuffer(lmdb_data, dtype=np.uint8)
         lmdb_data = cv2.imdecode(lmdb_data, cv2.IMREAD_COLOR)
-        pil_image = np.array(
-            Image.fromarray(lmdb_data).convert("RGB"), dtype=np.uint8
-        )
+        pil_image = np.array(Image.fromarray(lmdb_data).convert('RGB'), dtype=np.uint8)
         return pil_image
 
     def read_pkl(self, key):
-        data_str = self.key_labels[key].decode("utf-8").split("\n")
+        data_str = self.key_labels[key].decode('utf-8').split('\n')
         label = np.array([list(map(float, s.split())) for s in data_str if s])
         return label
 
@@ -355,8 +338,7 @@ class my_dataset_LMDB_PKL(Dataset):
         # Selects new image size every tenth batch
         if self.multiscale and self.batch_count % 10 == 0:
             self.img_size = random.choice(
-                range(self.min_size, self.max_size + 1, 32)
-            )
+                range(self.min_size, self.max_size + 1, 32))
 
         # Resize images to input shape
         imgs = torch.stack([resize(img, self.img_size) for img in imgs])
@@ -367,24 +349,19 @@ class my_dataset_LMDB_PKL(Dataset):
         bb_targets = torch.cat(bb_targets, 0)
 
         return __, imgs, bb_targets
-
+    
     def __len__(self):
         return len(self.image_labels)
 
-
 class my_dataset_HDF5_PKL(Dataset):
-    def __init__(
-        self, list_path, img_size=416, multiscale=True, transform=None
-    ):
+    def __init__(self, list_path, img_size=416, multiscale=True, transform=None):
         self.db_path = DB_PATH
         self.pkl_path = PKL_PATH
         self.key_labels = {}
 
         with open(list_path, "r") as file:
             self.img_files = file.readlines()
-        self.image_labels = [
-            path.split("/")[-1].split(".")[0] for path in self.img_files
-        ]
+        self.image_labels = [path.split("/")[-1].split(".")[0] for path in self.img_files]
 
         # Delay loading LMDB data until after initialization to avoid "can't pickle Environment Object error"
         self._init_db()
@@ -397,12 +374,13 @@ class my_dataset_HDF5_PKL(Dataset):
         self.max_size = self.img_size + 3 * 32
         self.batch_count = 0
         self.transform = transform
+        
 
     def _init_db(self):
         self.hf = h5py.File(self.db_path, "r")  # open a hdf5 file
-
+        
     def _init_pkl(self):
-        with open(self.pkl_path, "rb") as handle:
+        with open(self.pkl_path, 'rb') as handle:
             self.key_labels = pickle.load(handle)
 
     def read_hdf5(self, key):
@@ -413,25 +391,24 @@ class my_dataset_HDF5_PKL(Dataset):
         return img
 
     def read_pkl(self, key):
-        data_str = self.key_labels[key].decode("utf-8").split("\n")
-        label = np.array(
-            [list(map(float, s.split())) for s in data_str if s]
-        ).reshape(-1, 5)
+        data_str = self.key_labels[key].decode('utf-8').split('\n')
+        label = np.array([list(map(float, s.split())) for s in data_str if s]).reshape(-1, 5)
         return label
 
     def __getitem__(self, index):
         try:
+
             img = self.read_hdf5(self.image_labels[index])
         except Exception:
             print(f"Could not read image '{self.image_labels[index]}'.")
             return
-
+        
         try:
             boxes = self.read_pkl(self.image_labels[index])
         except Exception:
             print(f"Could not read label '{self.image_labels[index]}'.")
             return
-
+        
         # print(img, boxes)
         # print(self.image_labels[index])
         # -----------
@@ -456,8 +433,7 @@ class my_dataset_HDF5_PKL(Dataset):
         # Selects new image size every tenth batch
         if self.multiscale and self.batch_count % 10 == 0:
             self.img_size = random.choice(
-                range(self.min_size, self.max_size + 1, 32)
-            )
+                range(self.min_size, self.max_size + 1, 32))
 
         # Resize images to input shape
         imgs = torch.stack([resize(img, self.img_size) for img in imgs])
@@ -468,6 +444,6 @@ class my_dataset_HDF5_PKL(Dataset):
         bb_targets = torch.cat(bb_targets, 0)
 
         return __, imgs, bb_targets
-
+    
     def __len__(self):
         return len(self.image_labels)

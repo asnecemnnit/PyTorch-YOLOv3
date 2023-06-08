@@ -1,4 +1,5 @@
-classes= 1
-train=data/custom/train.txt
-valid=data/custom/valid.txt
-names=data/custom/classes.names
+classes= 3
+train=/private_shared/Projects/PyTorch-YOLOv3/data/custom/train.txt
+valid=/private_shared/Projects/PyTorch-YOLOv3/data/custom/valid.txt
+test=/private_shared/Projects/PyTorch-YOLOv3/data/custom/test.txt
+names=/private_shared/Projects/PyTorch-YOLOv3/data/custom/classes.names

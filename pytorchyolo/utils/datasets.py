@@ -14,9 +14,10 @@ import cv2
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 # DB_PATH = "/private_shared/Projects/PyTorch-YOLOv3/data/custom/images_hdf5_test/images_test.hdf5"
 # PKL_PATH = "/private_shared/Projects/PyTorch-YOLOv3/data/custom/labels_test.pkl"
-PKL_PATH = "/private_shared/Projects/PyTorch-YOLOv3/data/custom/labels.pkl"
+# HDF5_PATH = "/private_shared/Projects/PyTorch-YOLOv3/data/custom/labels.pkl"
 # DB_PATH = "/public_shared/online/images_hdf5/images.hdf5"
-# PKL_PATH = "/public_shared/online/labels_pkl/labels.pkl"
+PKL_PATH = "/public_shared/online/images_lmdb/labels_pkl/labels.pkl"
+# HDF5_PATH = "/public_shared/online/PVDN_thesis_data/bright_spot_data/bright_spot_dataset.hdf5"
 
 
 def pad_to_square(img, pad_value):

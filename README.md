@@ -198,3 +198,32 @@ https://pjreddie.com/yolo/.
 ### YOEO — You Only Encode Once
 
 [YOEO](https://github.com/bit-bots/YOEO) extends this repo with the ability to train an additional semantic segmentation decoder. The lightweight example model is mainly targeted towards embedded real-time applications.
+
+
+```bash
+# First steps in remote ssh cluster
+pip install --upgrade pip
+pip install pytorchyolo --user
+pip install poetry==1.4.0 --user
+export PATH="$HOME/.local/bin:$PATH"
+poetry install
+poetry add lmdb
+poetry add mmcv
+poetry add h5py
+
+# Configuration
+# Changes in yolov3-custom.cfg
+# classes
+# filters (before yolo layer) = (classes + 5) * 3
+# batches
+
+# Training from checkpoint/weight
+poetry run yolo-train --model config/yolov3-custom.cfg --data config/custom.data --pretrained_weights weights/darknet53.conv.74 --epochs 5
+
+# Prediction on images
+poetry run yolo-detect --model "config/yolov3-custom.cfg" --weights "checkpoints/yolov3_ckpt_20.pth" --images "vasp_images" --classes "data/custom/classes.names"
+poetry run yolo-predict --model "config/yolov3-custom.cfg" --pretrained_weights "checkpoints/yolov3_ckpt_14.pth"
+
+# Training resume from a checkpoint
+python pytorchyolo/train.py --epochs 50 --model config/yolov3-custom.cfg --pretrained_weights checkpoints/yolov3_ckpt_n.pth --data config/custom.data
+```
